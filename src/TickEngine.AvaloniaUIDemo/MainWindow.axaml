@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TickEngine.AvaloniaUIDemo.MainWindow"
+        Title="TickEngine.AvaloniaUIDemo — 弹球画布（Unity 风格 Update 架构）"
+        Width="900" Height="640"
+        WindowStartupLocation="CenterScreen">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Background="#ffffff" Padding="8">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <Button x:Name="BtnStart" Content="启动引擎" Click="OnStartClick"/>
+        <Button x:Name="BtnStop" Content="停止引擎" IsEnabled="False" Click="OnStopClick"/>
+        <TextBlock Text="物理Hz:" VerticalAlignment="Center"/>
+        <NumericUpDown x:Name="FpsPicker" Minimum="1" Maximum="500" Value="100" Width="180" VerticalAlignment="Center"/>
+        <TextBlock x:Name="StatusText" Text="引擎: 已停止" VerticalAlignment="Center" Margin="12,0,0,0"/>
+        <Button Content="打开探针(Probe)" Margin="24,0,0,0" Click="OnOpenProbeClick"/>
+      </StackPanel>
+    </Border>
+    <Panel x:Name="CanvasHost"/>
+  </DockPanel>
+</Window>

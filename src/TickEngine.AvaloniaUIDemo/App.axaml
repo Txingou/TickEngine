@@ -1,0 +1,9 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="TickEngine.AvaloniaUIDemo.App"
+             RequestedThemeVariant="Default">
+  <Application.Styles>
+    <FluentTheme />
+    <!-- 探针窗自带主题（Window.Styles 内含 FluentTheme + DataGrid 主题），本宿主无需引入 -->
+  </Application.Styles>
+</Application>

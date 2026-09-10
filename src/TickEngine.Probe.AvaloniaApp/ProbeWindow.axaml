@@ -1,0 +1,81 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:probe="using:TickEngine.Probe"
+        x:Class="TickEngine.Probe.ProbeWindow"
+        x:CompileBindings="False"
+        Title="TickEngine Probe — 系统性能探测"
+        Width="1120" Height="720"
+        WindowStartupLocation="CenterScreen">
+  <!-- 窗口自带主题：宿主无需在 App.axaml 引入 FluentTheme / DataGrid 主题（已实测） -->
+  <Window.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
+  </Window.Styles>
+
+  <DockPanel Margin="8">
+    <TextBlock DockPanel.Dock="Top" Text="TickEngine Probe — 开发期性能探测器（Avalonia 宿主）"
+               FontWeight="Bold" Margin="0,0,0,6"/>
+
+    <!-- 状态行：宿主UI线程CPU / 绘制 / 纪元 + BeatLog 开关 -->
+    <Border DockPanel.Dock="Top" Background="#20242c" CornerRadius="4" Padding="8,4" Margin="0,0,0,6">
+      <StackPanel Orientation="Horizontal" Spacing="16">
+        <TextBlock x:Name="LblHostCpu" Text="宿主UI线程CPU: -" Foreground="White" VerticalAlignment="Center"/>
+        <TextBlock x:Name="LblPaint" Text="绘制: -" Foreground="White" VerticalAlignment="Center"/>
+        <TextBlock x:Name="LblEpoch" Text="纪元: -" Foreground="White" VerticalAlignment="Center"/>
+        <CheckBox x:Name="ChkBeatLog" Content="节拍日志(beat-log.csv)" Foreground="White"
+                  VerticalAlignment="Center" Margin="12,0,0,0"/>
+      </StackPanel>
+    </Border>
+
+    <Grid RowDefinitions="2*,5,1*">
+      <!-- 上半：系统表（双击错误行 → 跳转源码） -->
+      <DataGrid x:Name="StatsGrid" Grid.Row="0"
+                AutoGenerateColumns="False"
+                IsReadOnly="True"
+                GridLinesVisibility="Horizontal"
+                HeadersVisibility="Column">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="系统" Binding="{Binding Name}" Width="110"/>
+          <DataGridTextColumn Header="组" Binding="{Binding GroupName}" Width="75"/>
+          <DataGridTextColumn Header="亲和" Binding="{Binding ThreadKind}" Width="65"/>
+          <DataGridTextColumn Header="目标Hz" Binding="{Binding Fps}" Width="60"/>
+          <DataGridTextColumn Header="实测Hz" Binding="{Binding ActualFpsText}" Width="70"/>
+          <DataGridTextColumn Header="拍号" Binding="{Binding TickNumber}" Width="80"/>
+          <DataGridTextColumn Header="丢拍" Binding="{Binding Dropped}" Width="55"/>
+          <DataGridTextColumn Header="异常数" Binding="{Binding Faults}" Width="60"/>
+          <DataGridTextColumn Header="帧间隔ms" Binding="{Binding FrameIntervalText}" Width="80"/>
+          <DataGridTextColumn Header="最近Update" Binding="{Binding UpdateLastText}" Width="90"/>
+          <DataGridTextColumn Header="最大Update" Binding="{Binding MaxUpdateText}" Width="90"/>
+          <DataGridTextColumn Header="启用" Binding="{Binding EnabledText}" Width="50"/>
+          <DataGridTextColumn Header="异常消息" Binding="{Binding ExceptionMessage}" Width="260"/>
+        </DataGrid.Columns>
+      </DataGrid>
+
+      <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch"
+                    Background="#DDDDDD" ResizeDirection="Rows"/>
+
+      <!-- 下半：日志清单（Console.Out→INFO / Console.Error→ERROR / 引擎异常→ERROR） -->
+      <DockPanel Grid.Row="2">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,2,0,4">
+          <CheckBox x:Name="ChkErrorsOnly" Content="仅错误" VerticalAlignment="Center"/>
+          <CheckBox x:Name="ChkAutoScroll" Content="自动滚动" IsChecked="True" VerticalAlignment="Center"/>
+          <Button x:Name="BtnClear" Content="清空" Padding="10,2"/>
+          <TextBlock x:Name="LblHint" Text="双击表格错误行或日志行 → 跳转 VS 对应行；不可用时复制到剪贴板"
+                     Foreground="Gray" VerticalAlignment="Center"/>
+        </StackPanel>
+        <ListBox x:Name="LogList" FontFamily="Consolas,Microsoft YaHei UI" FontSize="12">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="86,54,*">
+                <TextBlock Text="{Binding TimeText}"/>
+                <TextBlock Grid.Column="1" Text="{Binding LevelText}"/>
+                <TextBlock Grid.Column="2" Text="{Binding Message}" TextTrimming="CharacterEllipsis"
+                           Foreground="{Binding Foreground}"/>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Grid>
+  </DockPanel>
+</Window>

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 开发期探针：Avalonia 应用（可独立运行，也可被宿主引用后在后台线程启动）。
+         命名空间保持 TickEngine.Probe，宿主的 using 不变。 -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12.0</LangVersion>
+    <RootNamespace>TickEngine.Probe</RootNamespace>
+    <AssemblyName>TickEngine.Probe.AvaloniaApp</AssemblyName>
+    <PackageId>TickEngine.Probe.AvaloniaApp</PackageId>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <!-- 系统统计表用 DataGrid（探针窗自带主题，宿主无需引入） -->
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TickEngine\TickEngine.csproj" />
+  </ItemGroup>
+
+</Project>

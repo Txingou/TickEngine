@@ -1,0 +1,9 @@
+# 统一换行处理：仓库内规范化为 LF，检出时按平台转换（避免 Windows/Linux 间整文件 diff）
+* text=auto
+
+*.cs      text diff=csharp
+*.csproj  text
+*.sln     text
+*.md      text
+*.axaml   text
+*.json    text

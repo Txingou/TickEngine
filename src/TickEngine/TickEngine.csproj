@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12.0</LangVersion>
+    <RootNamespace>TickEngine</RootNamespace>
+    <AssemblyName>TickEngine</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- NuGet 元数据：开源后发布时启用 -->
+    <PackageId>TickEngine</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Hiwonder Lab</Authors>
+    <Description>Unity-style Update architecture for .NET: fixed-FPS main/UI-thread loops and per-behaviour background loops at individual rates.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+</Project>

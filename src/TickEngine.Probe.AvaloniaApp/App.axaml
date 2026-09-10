@@ -1,0 +1,10 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="TickEngine.Probe.App"
+             RequestedThemeVariant="Light">
+  <Application.Styles>
+    <!-- 应用级主题（独立运行时用）；探针窗另有 Window.Styles 自带主题，
+         因此被非 Avalonia 宿主以"引用 + 后台线程启动"方式使用时，宿主无需改 App.axaml -->
+    <FluentTheme />
+  </Application.Styles>
+</Application>

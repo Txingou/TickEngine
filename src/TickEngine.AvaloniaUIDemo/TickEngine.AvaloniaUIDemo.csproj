@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- 宿主自身是 Avalonia 应用：探针窗直接用宿主的 UI 线程（不再需要 WinForms / 第二个 Avalonia 应用） -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12.0</LangVersion>
+    <RootNamespace>TickEngine.AvaloniaUIDemo</RootNamespace>
+    <AssemblyName>TickEngine.AvaloniaUIDemo</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TickEngine\TickEngine.csproj" />
+    <!-- 开发期探针：探针窗自带主题，宿主 App.axaml 无需引入 DataGrid 主题 -->
+    <ProjectReference Include="..\TickEngine.Probe.AvaloniaApp\TickEngine.Probe.AvaloniaApp.csproj" />
+  </ItemGroup>
+
+</Project>
