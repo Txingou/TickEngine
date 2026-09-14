@@ -236,7 +236,6 @@ probe.ToggleProbeWindow();          // P 键语义：开⇄关
 因此 `dotnet pack` **不会**把它们顺手打成包。
 
 ```bash
-cd experiments/TickEngine
 dotnet pack src/TickEngine/TickEngine.csproj -c Release -o artifacts
 # artifacts/TickEngine.<版本>.nupkg   ← 含 README.md / LICENSE / lib/net8.0/TickEngine.dll + TickEngine.xml
 # artifacts/TickEngine.<版本>.snupkg  ← 符号包（SourceLink 指向 GitHub 对应提交，可单步进源码）

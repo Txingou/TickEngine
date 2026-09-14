@@ -44,8 +44,10 @@ git push origin v0.2.0
 
 ## 三、发版前的本地验证（建议照做；CI 只是第二道网）
 
+以下命令都在**仓库根**执行（GitHub 上的仓库根就是这个 `TickEngine` 目录；本地开发工作区把该仓库放在
+`.../Hiwonder/experiments/TickEngine`，所以本地要先 `cd` 进去）：
+
 ```bash
-cd experiments/TickEngine
 dotnet build TickEngine.sln -c Release                 # 6 个项目（Windows）
 dotnet test  tests/TickEngine.Tests -c Release         # 41 项
 dotnet run --project src/TickEngine.ConsoleDemo -c Release -- --smoke --seconds 3 --no-beatlog

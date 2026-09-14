@@ -393,3 +393,13 @@ WinForms 宿主接入的成本降到"一个按钮 + 一次懒装配"，故补齐
 **本次不发版**：先让 `push main` 跑绿，再由维护者打 `v0.1.0` 触发首次真实发布——把"CI 配置对不对"与
 "首次发布会不会失败"两个变量分开。`CONTEXT.md` 是领域术语表（引擎语义），发布/打包不属于该领域语言，故不加条目。
 
+**踩坑记录（两次 CI 变红的真实原因，供以后改 workflow 时对照）**
+- 本地工作区把本仓库放在 `.../Hiwonder/experiments/TickEngine`，而 **GitHub 上仓库根就是 TickEngine 目录**：
+  workflow 里所有路径都必须相对**仓库根**（`src/...`、`tests/...`、`artifacts/`），
+  写成 `working-directory: experiments/TickEngine` 会让 runner 直接找不到目录
+  （报 `'/usr/bin/bash' with working directory ... No such file or directory`）。
+  同一个错误还先一步表现为 `setup-dotnet` 的缓存步骤失败（"Some specified paths were not resolved"）——
+  缓存也因此干脆不用了。
+- action 版本用主版本 tag 会被弃用提醒追着跑（`actions/checkout@v4`/`setup-dotnet@v4` 已在被强制迁到 node24）；
+  现已改为 `checkout@v7` / `setup-dotnet@v6` / `upload-artifact@v7`（均为 node24）。
+

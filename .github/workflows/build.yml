@@ -31,9 +31,6 @@ jobs:
   core:
     name: core / build + test + pack (ubuntu)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: experiments/TickEngine
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -43,9 +40,8 @@ jobs:
         with:
           # 与 <TargetFramework>net8.0</TargetFramework> 对齐：发包用的 SDK 必须是钉住的
           dotnet-version: '8.0.x'
-          # 不启用 setup-dotnet 的 NuGet 缓存：本仓库的 cache-dependency-path 在该 action 里会
-          # 解析失败（annotation: "Some specified paths were not resolved, unable to cache
-          # dependencies."）——缓存省下的十几秒不值得让整条流水线变脆。
+          # 不启用 setup-dotnet 的 NuGet 缓存：本仓库体量小、restore 只要十几秒，
+          # 不值得为此再引入一个可能失败的缓存步骤。
 
       - name: Restore
         run: dotnet restore tests/TickEngine.Tests/TickEngine.Tests.csproj
@@ -80,7 +76,7 @@ jobs:
           work=$(mktemp -d)
           dotnet new console -o "$work/Smoke" --framework net8.0 > /dev/null
           cd "$work/Smoke"
-          dotnet add package TickEngine --version "$version" --source "$GITHUB_WORKSPACE/experiments/TickEngine/artifacts" > /dev/null
+          dotnet add package TickEngine --version "$version" --source "$GITHUB_WORKSPACE/artifacts" > /dev/null
           cat > Program.cs <<'CS'
           using TickEngine;
 
@@ -115,7 +111,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: TickEngine-nupkg
-          path: experiments/TickEngine/artifacts/*.*nupkg
+          path: artifacts/*.*nupkg
           if-no-files-found: error
           retention-days: 7
 
@@ -124,9 +120,6 @@ jobs:
     # 只在 push（含 tag）上跑，不在 PR 上跑：PR 噪音留给 ubuntu 作业
     if: github.event_name == 'push'
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: experiments/TickEngine
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -135,9 +128,6 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
-          # 不启用 setup-dotnet 的 NuGet 缓存：本仓库的 cache-dependency-path 在该 action 里会
-          # 解析失败（annotation: "Some specified paths were not resolved, unable to cache
-          # dependencies."）——缓存省下的十几秒不值得让整条流水线变脆。
 
       - name: Build full solution (含 net8.0-windows 的 WinformDemo)
         run: dotnet build TickEngine.sln -c Release
@@ -158,9 +148,6 @@ jobs:
     permissions:
       id-token: write   # GitHub OIDC token（换取 nuget.org 临时 API Key）
       contents: write   # 建 GitHub Release
-    defaults:
-      run:
-        working-directory: experiments/TickEngine
     steps:
       - name: Checkout
         uses: actions/checkout@v7
