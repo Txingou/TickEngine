@@ -36,15 +36,16 @@ jobs:
         working-directory: experiments/TickEngine
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           # 与 <TargetFramework>net8.0</TargetFramework> 对齐：发包用的 SDK 必须是钉住的
           dotnet-version: '8.0.x'
-          cache: true
-          cache-dependency-path: experiments/TickEngine/**/*.csproj
+          # 不启用 setup-dotnet 的 NuGet 缓存：本仓库的 cache-dependency-path 在该 action 里会
+          # 解析失败（annotation: "Some specified paths were not resolved, unable to cache
+          # dependencies."）——缓存省下的十几秒不值得让整条流水线变脆。
 
       - name: Restore
         run: dotnet restore tests/TickEngine.Tests/TickEngine.Tests.csproj
@@ -111,7 +112,7 @@ jobs:
           dotnet run -c Release
 
       - name: Upload package artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: TickEngine-nupkg
           path: experiments/TickEngine/artifacts/*.*nupkg
@@ -128,14 +129,15 @@ jobs:
         working-directory: experiments/TickEngine
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
-          cache: true
-          cache-dependency-path: experiments/TickEngine/**/*.csproj
+          # 不启用 setup-dotnet 的 NuGet 缓存：本仓库的 cache-dependency-path 在该 action 里会
+          # 解析失败（annotation: "Some specified paths were not resolved, unable to cache
+          # dependencies."）——缓存省下的十几秒不值得让整条流水线变脆。
 
       - name: Build full solution (含 net8.0-windows 的 WinformDemo)
         run: dotnet build TickEngine.sln -c Release
@@ -161,10 +163,10 @@ jobs:
         working-directory: experiments/TickEngine
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
 
