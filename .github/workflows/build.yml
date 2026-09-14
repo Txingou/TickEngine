@@ -238,27 +238,44 @@ jobs:
           user: Mr.Ming
 
       - name: Push to nuget.org
+        env:
+          # 用 env 传递，避免 key 出现在命令行回显里
+          NUGET_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          status=0
           for f in "artifacts/TickEngine.$VERSION.nupkg" "artifacts/TickEngine.$VERSION.snupkg"; do
             echo "pushing $f"
-            dotnet nuget push "$f" \
-              --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
-              --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate
+            if ! dotnet nuget push "$f" \
+                   --api-key "$NUGET_KEY" \
+                   --source https://api.nuget.org/v3/index.json \
+                   --skip-duplicate 2>&1 | tee -a push.log; then
+              status=1
+            fi
           done
+          if [ "$status" -ne 0 ]; then
+            echo "::error::推送到 nuget.org 失败（公开仓库日志需登录，这里把输出打成注解）"
+            tail -n 25 push.log | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          fi
+          echo "::notice::已推送 .nupkg 与 .snupkg 到 nuget.org"
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           case "$VERSION" in
             *-*) pre="--prerelease" ;;
             *)   pre="" ;;
           esac
-          gh release create "$GITHUB_REF_NAME" \
-            "artifacts/TickEngine.$VERSION.nupkg" \
-            "artifacts/TickEngine.$VERSION.snupkg" \
-            --title "TickEngine $VERSION" \
-            --generate-notes $pre
+          if ! gh release create "$GITHUB_REF_NAME" \
+                 "artifacts/TickEngine.$VERSION.nupkg" \
+                 "artifacts/TickEngine.$VERSION.snupkg" \
+                 --title "TickEngine $VERSION" \
+                 --generate-notes $pre 2>&1 | tee release.log; then
+            echo "::error::创建 GitHub Release 失败"
+            tail -n 20 release.log | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          fi
+          echo "::notice::已创建 GitHub Release $GITHUB_REF_NAME"
