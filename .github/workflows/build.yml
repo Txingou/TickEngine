@@ -1,0 +1,217 @@
+name: build
+
+# 设计口径（决策见 docs/0001 的 D16）：
+#   push/PR  → 只构建、测试、打包并上传 artifact（不发版）
+#   tag v*   → 校验 tag 与 csproj <Version> 一致 → 推 nuget.org（OIDC 可信发布）→ 建 GitHub Release
+# 发布凭据：无任何长期密钥。nuget.org 的 Trusted Publishing 策略绑定
+#   Repository Owner=Txingou / Repository=TickEngine / Workflow File=build.yml / Environment=production，
+#   因此**发布 job 必须留在本文件里**、且必须声明 environment: production。
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # 发版运行不取消：tag 推上去就让它跑完
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  core:
+    name: core / build + test + pack (ubuntu)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: experiments/TickEngine
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          # 与 <TargetFramework>net8.0</TargetFramework> 对齐：发包用的 SDK 必须是钉住的
+          dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: experiments/TickEngine/**/*.csproj
+
+      - name: Restore
+        run: dotnet restore tests/TickEngine.Tests/TickEngine.Tests.csproj
+
+      - name: Build core (Release)
+        run: dotnet build src/TickEngine/TickEngine.csproj -c Release --no-restore
+
+      - name: Test (xunit)
+        run: dotnet test tests/TickEngine.Tests/TickEngine.Tests.csproj -c Release --no-restore
+
+      - name: Pack
+        run: dotnet pack src/TickEngine/TickEngine.csproj -c Release --no-build -o artifacts
+
+      - name: Verify package contents
+        run: |
+          set -euo pipefail
+          nupkg=$(ls artifacts/TickEngine.*.nupkg)
+          echo "package: $nupkg"
+          unzip -Z1 "$nupkg" | sort
+          for f in TickEngine.nuspec README.md LICENSE lib/net8.0/TickEngine.dll lib/net8.0/TickEngine.xml; do
+            unzip -Z1 "$nupkg" | grep -qx "$f" || { echo "::error::包里缺少 $f"; exit 1; }
+          done
+          lnupkg=$(ls artifacts/TickEngine.*.snupkg)
+          unzip -Z1 "$lnupkg" | grep -qx 'lib/net8.0/TickEngine.pdb' || { echo "::error::符号包里缺少 PDB"; exit 1; }
+          echo "PACKAGE_CONTENTS_OK"
+
+      - name: Consumption smoke (引用打出来的包并编译运行)
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/TickEngine/TickEngine.csproj | head -n1)
+          echo "packed version: $version"
+          work=$(mktemp -d)
+          dotnet new console -o "$work/Smoke" --framework net8.0 > /dev/null
+          cd "$work/Smoke"
+          dotnet add package TickEngine --version "$version" --source "$GITHUB_WORKSPACE/experiments/TickEngine/artifacts" > /dev/null
+          cat > Program.cs <<'CS'
+          using TickEngine;
+
+          using var engine = new UpdateEngine();
+          int ticks = 0;
+
+          engine.Register(new CounterSystem(() => Interlocked.Increment(ref ticks)), Schedule.Worker(60, "smoke"));
+          engine.Start();
+          Thread.Sleep(500);
+          engine.Stop();
+
+          var views = engine.Systems;
+          var v = views[0];
+          Console.WriteLine($"ticks={ticks} groups={engine.GroupCount} systems={views.Count} " +
+                            $"tickNumber={v.TickNumber} dropped={v.Dropped} faults={v.Faults} " +
+                            $"actualFps={v.ActualFps:F1} elapsed={v.ElapsedSeconds:F2}");
+
+          bool ok = ticks > 0 && engine.GroupCount == 1 && views.Count == 1 && v.TickNumber > 0 && v.Faults == 0;
+          Console.WriteLine(ok ? "PACKAGE_SMOKE_OK" : "PACKAGE_SMOKE_FAILED");
+          return ok ? 0 : 1;
+
+          internal sealed class CounterSystem : UpdateSystem
+          {
+              private readonly Action _tick;
+              public CounterSystem(Action tick) => _tick = tick;
+              protected override void Update(in FrameContext frame) => _tick();
+          }
+          CS
+          dotnet run -c Release
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TickEngine-nupkg
+          path: experiments/TickEngine/artifacts/*.*nupkg
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    name: windows / full solution + smoke
+    # 只在 push（含 tag）上跑，不在 PR 上跑：PR 噪音留给 ubuntu 作业
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: experiments/TickEngine
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: experiments/TickEngine/**/*.csproj
+
+      - name: Build full solution (含 net8.0-windows 的 WinformDemo)
+        run: dotnet build TickEngine.sln -c Release
+
+      - name: Test (xunit)
+        run: dotnet test tests/TickEngine.Tests/TickEngine.Tests.csproj -c Release --no-build
+
+      - name: Engine smoke (无窗口)
+        run: dotnet run --project src/TickEngine.ConsoleDemo -c Release --no-build -- --smoke --seconds 3 --no-beatlog
+
+  publish:
+    name: publish to nuget.org + GitHub Release
+    needs: [core, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # 必须与 nuget.org 可信发布策略里的 Environment 完全一致，否则 OIDC 换取临时 API Key 会失败
+    environment: production
+    permissions:
+      id-token: write   # GitHub OIDC token（换取 nuget.org 临时 API Key）
+      contents: write   # 建 GitHub Release
+    defaults:
+      run:
+        working-directory: experiments/TickEngine
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify tag matches <Version> in TickEngine.csproj
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/TickEngine/TickEngine.csproj | head -n1)
+          echo "tag=$tag csproj=$version"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag v$tag 与 TickEngine.csproj 的 <Version>$version</Version> 不一致；请先把 csproj 版本改成 $tag 再打 tag"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Pack
+        run: dotnet pack src/TickEngine/TickEngine.csproj -c Release -o artifacts
+
+      - name: NuGet login (OIDC → temp API key)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          # nuget.org 的 profile 名（不是邮箱）；与可信发布策略的 owner 一致
+          user: Mr.Ming
+
+      - name: Push to nuget.org
+        run: |
+          set -euo pipefail
+          for f in "artifacts/TickEngine.$VERSION.nupkg" "artifacts/TickEngine.$VERSION.snupkg"; do
+            echo "pushing $f"
+            dotnet nuget push "$f" \
+              --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          case "$VERSION" in
+            *-*) pre="--prerelease" ;;
+            *)   pre="" ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" \
+            "artifacts/TickEngine.$VERSION.nupkg" \
+            "artifacts/TickEngine.$VERSION.snupkg" \
+            --title "TickEngine $VERSION" \
+            --generate-notes $pre

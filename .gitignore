@@ -4,6 +4,11 @@
 *.binlog
 TestResults/
 
+# 打包产物（dotnet pack -o artifacts 的默认落点）
+artifacts/
+*.nupkg
+*.snupkg
+
 # IDE / 用户级文件
 .vs/
 .idea/

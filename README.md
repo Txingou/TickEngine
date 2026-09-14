@@ -1,9 +1,20 @@
 # TickEngine
 
+[![build](https://github.com/Txingou/TickEngine/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/Txingou/TickEngine/actions/workflows/build.yml)
+[![NuGet](https://img.shields.io/nuget/v/TickEngine.svg)](https://www.nuget.org/packages/TickEngine)
+[![NuGet downloads](https://img.shields.io/nuget/dt/TickEngine.svg)](https://www.nuget.org/packages/TickEngine)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Unity MonoBehaviour `Update()` 风格的 .NET 8 调度引擎实验。
 
 主/UI 线程固定节拍更新 **+** 各自独立 FPS 的后台线程更新，一个引擎统一表达——
 你现有的"每个控制器一个 `Thread + PeriodicTimer` 循环"的手写模式，收敛成一组可复用系统。
+
+## 安装
+
+```bash
+dotnet add package TickEngine    # 目标框架 net8.0，无第三方依赖
+```
 
 ## 为什么
 
@@ -47,6 +58,9 @@ MonoGame/OpenTK 绑定窗口、Akka/R3 无固定步长语义），因此纯自�
 <仓库根>/
 ├── CONTEXT.md                  # 术语表（本仓库即该实验的独立开源形态）
 ├── LICENSE                     # MIT
+├── README.md / RELEASE.md      # 本文件 / 发版 checklist（一次性配置、发版步骤、失败排查）
+├── Directory.Build.props       # 仓库级构建/打包默认值（默认 IsPackable=false，只有核心库开）
+├── .github/workflows/build.yml # CI：构建+测试+打包（artifact）/ tag 触发发版
 ├── .gitignore
 ├── docs/
 │   ├── 0001-tickengine-design.md      # 设计决策日志（后文取代前文）+ 发布前审查与硬化记录
@@ -83,6 +97,7 @@ dotnet run --project src/TickEngine.WinformDemo
 dotnet run --project src/TickEngine.AvaloniaUIDemo
 dotnet run --project src/TickEngine.ConsoleDemo
 dotnet run --project src/TickEngine.Probe.AvaloniaApp -- --self-test   # 独立探针窗自检（1.5s 自动退出）
+dotnet pack src/TickEngine/TickEngine.csproj -c Release -o artifacts   # 打包（见「打包与发布」）
 ```
 
 各宿主的自检开关：
@@ -214,6 +229,30 @@ probe.ToggleProbeWindow();          // P 键语义：开⇄关
 - 成员的 Worker 组在成员全部迁移/卸载后会被回收；Main 组不回收（避免与在途门控纠缠）。
 - 探针窗口在 Avalonia 宿主下不设 Owner：宿主若用默认 `ShutdownMode`，退出时序依赖会话 Dispose 里 Post 的关窗
   （三个官方演示都在 `OnClosed`/`FormClosed`/`finally` 里 Dispose，行为确定）。
+
+## 打包与发布
+
+只发布核心库 **`TickEngine`**：其余项目（探针 + 三个演示）在 [`Directory.Build.props`](Directory.Build.props) 里默认 `IsPackable=false`，
+因此 `dotnet pack` **不会**把它们顺手打成包。
+
+```bash
+cd experiments/TickEngine
+dotnet pack src/TickEngine/TickEngine.csproj -c Release -o artifacts
+# artifacts/TickEngine.<版本>.nupkg   ← 含 README.md / LICENSE / lib/net8.0/TickEngine.dll + TickEngine.xml
+# artifacts/TickEngine.<版本>.snupkg  ← 符号包（SourceLink 指向 GitHub 对应提交，可单步进源码）
+```
+
+CI 是 [`.github/workflows/build.yml`](.github/workflows/build.yml)（工作流文件名是 nuget.org 可信发布策略的一部分，**不要改名**）：
+
+| 事件 | 行为 |
+|---|---|
+| `push main` / PR | **ubuntu 作业**：构建核心库 + 41 项单测 + 打包 + 包内容校验 + **消费冒烟**（新建临时项目引用打出来的包并真跑一遍）；`push main` 额外跑 **windows 作业**：整 `TickEngine.sln` 构建（覆盖 `net8.0-windows` 的 WinformDemo）+ 无窗口冒烟。产物上传 artifact，**不发布** |
+| `push tag v*` | 校验 tag 与 `TickEngine.csproj` 的 `<Version>` 一致 → 打包 → OIDC 换取临时 API Key → 推 `.nupkg`/`.snupkg` 到 nuget.org → 建 GitHub Release（notes 自动生成） |
+
+- 发布凭据是 nuget.org **可信发布（Trusted Publishing）**：仓库里**没有任何长期密钥**，也不需要在 GitHub 配置 secret；
+  代价是工作流文件名、`environment: production` 与 nuget.org 策略三者必须严格对应（[`RELEASE.md`](RELEASE.md) 有对照表）。
+- **GUI 冒烟只在本地跑**（`--probe-smoke` / `--smoke-probe` / `--self-test`）：它们会真开窗口，放进 CI 只会把 runner 的桌面会话问题误判成代码缺陷。
+- 发版步骤、失败排查、已发布版本号不可复用等约束：见 [`RELEASE.md`](RELEASE.md)。
 
 ## License
 

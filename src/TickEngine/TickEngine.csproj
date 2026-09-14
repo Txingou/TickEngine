@@ -8,12 +8,27 @@
     <RootNamespace>TickEngine</RootNamespace>
     <AssemblyName>TickEngine</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- NuGet 元数据：开源后发布时启用 -->
+
+    <!-- 本仓库唯一发布到 nuget.org 的项目（其余项目在 Directory.Build.props 里默认 IsPackable=false）。
+         发版流程：改这里的 <Version> → 提交到 main → 打 tag v<Version> → push；
+         CI（.github/workflows/build.yml）会校验 tag 与这里的版本一致，不一致直接失败。 -->
+    <IsPackable>true</IsPackable>
     <PackageId>TickEngine</PackageId>
     <Version>0.1.0</Version>
-    <Authors>Hiwonder Lab</Authors>
     <Description>Unity-style Update architecture for .NET: fixed-FPS main/UI-thread loops and per-behaviour background loops at individual rates.</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>game-loop;update-loop;scheduler;fixed-timestep;tick;multithreading;realtime;unity-style</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- README/LICENSE 进包：nuget.org 包页面直接显示 README -->
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SourceLink：包里的 PDB 指向 GitHub 上的确切提交；只有可打包项目需要，故不放进 Directory.Build.props -->
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
+  </ItemGroup>
 
 </Project>

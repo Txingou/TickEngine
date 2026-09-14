@@ -346,3 +346,50 @@ WinForms 宿主接入的成本降到"一个按钮 + 一次懒装配"，故补齐
   演示默认把 `beat-log.csv` 写到进程 CWD（README 已说明，可用 `--beatlog` 改路径）；
   探针窗口在 Avalonia 宿主下不设 Owner（宿主 `ShutdownMode` 为默认值时的退出时序依赖 Post，见 README）。
 
+### D16. 打包与发布：单包 + tag 触发 + OIDC 可信发布（CI）
+把"提交即可编译打包、发版是一次有意动作"落成流水线（流程细节见 `RELEASE.md`）。
+
+**发布范围**
+- 只发布核心库 `TickEngine`（`PackageId=TickEngine`；发布前核实过该 ID 未被占用：扁平容器 404 + `dotnet package search` 无同名 ID）；
+- 探针 `TickEngine.Probe.AvaloniaApp` 与三个演示一律 `IsPackable=false`——它们是开发期工具/示例，不会有人用
+  `PackageReference` 引，且探针是 `WinExe`，发上去也装不起来。**实测依据**：不加该约束时 `dotnet pack TickEngine.sln`
+  会产出 5 个包（核心库 + 探针 + 三个演示）。
+
+**版本与触发**
+- 版本号唯一来源 = `src/TickEngine/TickEngine.csproj` 的 `<Version>`；不引 MinVer/GitVersion（零构建期依赖、
+  不需 `fetch-depth: 0`），也不加 `global.json`（本机继续可用更新的 SDK 编译）。
+- `push main` / PR → 构建 + 测试 + 打包，产物上传 artifact，**不发布**；`push tag v*` → CI 校验 `v<tag>` 与
+  csproj `<Version>` 一致（不一致直接失败）→ 发布 nuget.org → 建 GitHub Release。
+  "每次提交都能编译打包"与"发版"被刻意拆成两件事，避免日常提交消耗版本号。
+
+**凭据（可信发布 / OIDC）**
+- 用 nuget.org Trusted Publishing，无长期密钥、仓库里不配任何 secret：`NuGet/login@v1`（`user` = nuget.org
+  **profile 名**，不是邮箱）+ job 级 `id-token: write`，换取 **1 小时有效的一次性**临时 API Key →
+  因此换取动作放在**打包之后、推送之前**。
+- 策略字段与工作流严格绑定：`Workflow File = build.yml`（只填文件名）、`Environment = production`
+  → 发布 job 必须留在 `build.yml` 内且声明 `environment: production`，否则换不到 Key。
+  GitHub 的 `production` 环境当前无保护规则；日后若加 Required reviewers，工作流不用改，只是在发布 job 上等人工批准。
+- 官方文档只是**建议**把 profile 名存成 secret（并非必须）——本项目直接把用户名写在工作流里（公开信息，少一处配置）。
+
+**CI 矩阵（public 仓库，runner 分钟数不花钱）**
+- `core`（ubuntu-latest，SDK 固定 `8.0.x`，与 `TargetFramework` 对齐 → 产包可复现）：构建核心库 + 41 项单测 +
+  打包 + 包内容校验 + **消费冒烟**（临时项目 `dotnet add package --source <本地包目录>`，编译并真跑一遍，
+  断言 ticks/groups/faults）——这一步能在十几秒内抓住"缺依赖、缺 lib 分组、元数据写错"这类发布事故。
+- `windows`（windows-latest）：整 `TickEngine.sln` 构建（唯一能验证 `net8.0-windows` 的 WinformDemo 真能编译的地方）
+  + 无窗口冒烟 `ConsoleDemo --smoke`；**只在 push/tag 上跑，PR 不跑**（PR 噪音交给 ubuntu 作业）。
+- GUI 冒烟不上 CI：它们会真开窗口，runner 的桌面会话不稳会制造假红灯；本机验证仍是主战场。
+- `concurrency` 按 ref 分组并取消进行中的旧运行，但 **tag 运行不取消**（发版不允许被打断）。
+
+**包内容与工程化（一次做完）**
+- 根 `Directory.Build.props`：`IsPackable=false` 默认值 + Authors/Company/Copyright/ProjectUrl/RepositoryUrl/
+  RepositoryType + `PublishRepositoryUrl`/`EmbedUntrackedSources`/`Deterministic` + `ContinuousIntegrationBuild`
+  （仅 `CI=true` 时开）+ `IncludeSymbols`/`SymbolPackageFormat=snupkg`。
+- 核心库显式 `IsPackable=true`，并把 `README.md` + `LICENSE` 打进包（nuget.org 包页面直接显示 README）；
+  `Microsoft.SourceLink.GitHub 8.0.0` **只装在可打包项目**——`Directory.Build.props` 在项目体之前求值，
+  条件 ItemGroup（`Condition="'$(IsPackable)' == 'true'"`）在那里恒为 false，所以放在 csproj 里。
+- 实测包内容：`TickEngine.nuspec / README.md / LICENSE / lib/net8.0/TickEngine.dll / lib/net8.0/TickEngine.xml`；
+  符号包含 PDB，nuspec 的 `<repository>` 已带 SourceLink 解析出的 `commit=<sha>`。
+
+**本次不发版**：先让 `push main` 跑绿，再由维护者打 `v0.1.0` 触发首次真实发布——把"CI 配置对不对"与
+"首次发布会不会失败"两个变量分开。`CONTEXT.md` 是领域术语表（引擎语义），发布/打包不属于该领域语言，故不加条目。
+

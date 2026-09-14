@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <!-- 开发期探针：Avalonia 应用（可独立运行，也可被宿主引用后在后台线程启动）。
-         命名空间保持 TickEngine.Probe，宿主的 using 不变。 -->
+         命名空间保持 TickEngine.Probe，宿主的 using 不变。
+         不发布到 nuget.org：它是开发期工具而非库，IsPackable 由 Directory.Build.props 默认关闭。 -->
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -10,8 +11,6 @@
     <LangVersion>12.0</LangVersion>
     <RootNamespace>TickEngine.Probe</RootNamespace>
     <AssemblyName>TickEngine.Probe.AvaloniaApp</AssemblyName>
-    <PackageId>TickEngine.Probe.AvaloniaApp</PackageId>
-    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

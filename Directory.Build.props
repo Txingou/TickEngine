@@ -1,0 +1,33 @@
+<Project>
+
+  <!--
+    仓库级构建/打包默认值，对本目录（src/ 与 tests/）下所有项目生效。
+    打包口径：**默认全部不可打包**，只有真正要发布的库在自己的 csproj 里显式写
+    <IsPackable>true</IsPackable>。这样探针与三个演示不会被 `dotnet pack` 顺手打成包推上 nuget.org。
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+
+    <!-- 包元数据（仓库级，避免各项目重复；只有可打包项目才会用到） -->
+    <Authors>Hiwonder Lab (MingMm)</Authors>
+    <Company>Hiwonder Lab</Company>
+    <Product>TickEngine</Product>
+    <Copyright>Copyright (c) 2026 Hiwonder Lab (MingMm) and DeepSeek Harness AI assistant</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Txingou/TickEngine</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Txingou/TickEngine.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <!-- SourceLink / 可复现构建：PDB 里记录源码可从哪个提交取到（配合 .snupkg 单步进源码） -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+    <!-- CI 上启用确定性路径（PDB 里不写本机路径）；本地保持关闭，调试体验不受影响 -->
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- 符号包：`dotnet pack` 同时产出 .snupkg -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+</Project>
