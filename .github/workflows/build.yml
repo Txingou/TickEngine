@@ -196,29 +196,6 @@ jobs:
             exit 1
           }
 
-  # 临时作业（确认完即删）：从 runner 的干净网络通路核对 nuget.org 上是否已有 TickEngine 0.1.0
-  # （本机到 nuget.org 的路由要经过一个滞后的镜像，查不到；runner 不经过）。
-  check-nuget:
-    name: check TickEngine 0.1.0 on nuget.org (temporary)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Poll nuget.org flat-container index
-        run: |
-          set -uo pipefail
-          url="https://api.nuget.org/v3-flatcontainer/tickengine/index.json"
-          for _ in $(seq 1 40); do
-            body=$(curl -fsS "$url" 2>/dev/null || true)
-            if printf '%s' "$body" | grep -q '"0.1.0"'; then
-              echo "::notice::确认：nuget.org 上已有 TickEngine 0.1.0 —— $body"
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "::error::约 7 分钟内仍未在 nuget.org 索引里看到 TickEngine 0.1.0"
-          curl -sS -o /dev/null -w '::error::flat-container 当前 HTTP %{http_code}\n' "$url" || true
-          exit 1
-
   publish:
     name: publish to nuget.org + GitHub Release
     needs: [core, windows]
