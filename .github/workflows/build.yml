@@ -196,6 +196,29 @@ jobs:
             exit 1
           }
 
+  # 临时作业（确认完即删）：从 runner 的干净网络通路核对 nuget.org 上是否已有 TickEngine 0.1.0
+  # （本机到 nuget.org 的路由要经过一个滞后的镜像，查不到；runner 不经过）。
+  check-nuget:
+    name: check TickEngine 0.1.0 on nuget.org (temporary)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Poll nuget.org flat-container index
+        run: |
+          set -uo pipefail
+          url="https://api.nuget.org/v3-flatcontainer/tickengine/index.json"
+          for _ in $(seq 1 40); do
+            body=$(curl -fsS "$url" 2>/dev/null || true)
+            if printf '%s' "$body" | grep -q '"0.1.0"'; then
+              echo "::notice::确认：nuget.org 上已有 TickEngine 0.1.0 —— $body"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::约 7 分钟内仍未在 nuget.org 索引里看到 TickEngine 0.1.0"
+          curl -sS -o /dev/null -w '::error::flat-container 当前 HTTP %{http_code}\n' "$url" || true
+          exit 1
+
   publish:
     name: publish to nuget.org + GitHub Release
     needs: [core, windows]
@@ -279,3 +302,21 @@ jobs:
             exit 1
           fi
           echo "::notice::已创建 GitHub Release $GITHUB_REF_NAME"
+
+      # 推送成功 ≠ 立刻可在 nuget.org 上看到（索引有延迟）。这里从 runner（干净的 nuget.org 通路）
+      # 轮询 flat-container 索引做一次如实核对：看到即确认，没看到只警告——包已经推上去了，
+      # 绝不因为"索引慢"让一次成功的发布显示成失败。
+      - name: Verify package is live on nuget.org
+        run: |
+          set -uo pipefail
+          url="https://api.nuget.org/v3-flatcontainer/tickengine/index.json"
+          for _ in $(seq 1 60); do
+            body=$(curl -fsS "$url" 2>/dev/null || true)
+            if printf '%s' "$body" | grep -q "\"$VERSION\""; then
+              echo "::notice::nuget.org 索引里已出现 TickEngine $VERSION：$body"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::推送步骤已成功，但 10 分钟内没在 nuget.org 索引里看到 $VERSION（索引可能延迟，稍后自行确认；不要因此重发同版本号）"
+          curl -sS -o /dev/null -w '::warning::flat-container 当前 HTTP %{http_code}\n' "$url" || true
