@@ -196,35 +196,6 @@ jobs:
             exit 1
           }
 
-  # 临时作业（验证完即删）：只做 OIDC → 临时 API Key 的换取，不推送任何包，
-  # 用来在不发版的前提下验证 nuget.org 可信发布策略与工作流是否对得上。
-  verify-oidc:
-    name: verify OIDC trusted publishing (temporary)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: NuGet login (OIDC → temp API key)
-        id: login
-        uses: NuGet/login@v1
-        with:
-          user: Mr.Ming
-
-      - name: Report token exchange result
-        if: always()
-        env:
-          KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: |
-          if [ -n "$KEY" ]; then
-            echo "::notice::OIDC 换取临时 API Key 成功：策略与工作流匹配（未推送任何包）"
-          else
-            echo "::error::OIDC 换取临时 API Key 失败：核对策略的 profile 名 / Environment=production / Workflow File=build.yml"
-            exit 1
-          fi
-
   publish:
     name: publish to nuget.org + GitHub Release
     needs: [core, windows]

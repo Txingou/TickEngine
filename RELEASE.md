@@ -21,6 +21,9 @@ nuget.org → 账号 → **Trusted Publishing**，策略字段必须与工作流
 | Scopes | Push new packages and package versions | 推 `.nupkg` / `.snupkg` |
 
 - GitHub 仓库侧**不需要配置任何 secret**（`GITHUB_TOKEN` 由 Actions 自动提供）。
+- **已验证（2026-09-14）**：用一次性临时作业（只换取、不推包）实测 OIDC → 临时 API Key 换取成功，
+  说明上表的策略字段与 `.github/workflows/build.yml` 完全匹配。尚未真实验证的只剩 `dotnet nuget push`
+  与 GitHub Release 创建本身——由首次打 tag 验证。
 - GitHub 的 `production` 环境目前**没有保护规则** → tag 推上去即自动发布。
   若日后在该环境上加了 **Required reviewers**，工作流不用改，但每次发版都会**停在发布 job 上等人工批准**。
 - 策略可能需要"首次成功发布"才从**临时激活**转为**永久激活**（该状态只对私有仓库出现；本仓库是 public，通常无需关心）。

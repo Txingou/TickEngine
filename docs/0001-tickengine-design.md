@@ -370,6 +370,9 @@ WinForms 宿主接入的成本降到"一个按钮 + 一次懒装配"，故补齐
   → 发布 job 必须留在 `build.yml` 内且声明 `environment: production`，否则换不到 Key。
   GitHub 的 `production` 环境当前无保护规则；日后若加 Required reviewers，工作流不用改，只是在发布 job 上等人工批准。
 - 官方文档只是**建议**把 profile 名存成 secret（并非必须）——本项目直接把用户名写在工作流里（公开信息，少一处配置）。
+- **已实测（不留未验证的关键环节）**：在 `main` 上临时加了一个只做"OIDC → 临时 API Key 换取、不推任何包"的作业，
+  跑绿后即删。结论：策略字段（owner 的 profile 名 `Mr.Ming` / `Workflow File = build.yml` / `Environment = production`）
+  与工作流完全匹配，换取成功。**尚未被真实验证的只剩 `dotnet nuget push` 与 GitHub Release 创建本身**——由首次 tag 验证。
 
 **CI 矩阵（public 仓库，runner 分钟数不花钱）**
 - `core`（ubuntu-latest，SDK 固定 `8.0.x`，与 `TargetFramework` 对齐 → 产包可复现）：构建核心库 + 41 项单测 +
