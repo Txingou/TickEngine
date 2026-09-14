@@ -382,8 +382,12 @@ WinForms 宿主接入的成本降到"一个按钮 + 一次懒装配"，故补齐
 
 **包内容与工程化（一次做完）**
 - 根 `Directory.Build.props`：`IsPackable=false` 默认值 + Authors/Company/Copyright/ProjectUrl/RepositoryUrl/
-  RepositoryType + `PublishRepositoryUrl`/`EmbedUntrackedSources`/`Deterministic` + `ContinuousIntegrationBuild`
-  （仅 `CI=true` 时开）+ `IncludeSymbols`/`SymbolPackageFormat=snupkg`。
+  RepositoryType + `PublishRepositoryUrl`/`EmbedUntrackedSources`/`Deterministic` + `IncludeSymbols`/
+  `SymbolPackageFormat=snupkg`。
+- `ContinuousIntegrationBuild`（确定性源路径）**只给发布用的核心库开**（放在它的 csproj 里，`CI=true` 时生效）：
+  它会把 PDB 里的文档路径映射化，而 ConsoleDemo 的冒烟要断言"异常栈 → 真实盘符 file:line → 双击跳 VS"，
+  两者目标冲突（实测：全仓库开 CIB 时冒烟 `LOG_TEXT_RESOLVE=FAILED`、以退出码 7 收场；只给核心库开后
+  `LOG_TEXT_RESOLVE=OK`、冒烟退出 0，且核心库仍产出确定性包与符号包）。
 - 核心库显式 `IsPackable=true`，并把 `README.md` + `LICENSE` 打进包（nuget.org 包页面直接显示 README）；
   `Microsoft.SourceLink.GitHub 8.0.0` **只装在可打包项目**——`Directory.Build.props` 在项目体之前求值，
   条件 ItemGroup（`Condition="'$(IsPackable)' == 'true'"`）在那里恒为 false，所以放在 csproj 里。
@@ -402,4 +406,11 @@ WinForms 宿主接入的成本降到"一个按钮 + 一次懒装配"，故补齐
   缓存也因此干脆不用了。
 - action 版本用主版本 tag 会被弃用提醒追着跑（`actions/checkout@v4`/`setup-dotnet@v4` 已在被强制迁到 node24）；
   现已改为 `checkout@v7` / `setup-dotnet@v6` / `upload-artifact@v7`（均为 node24）。
+- **公开仓库的日志与 artifact 都需要登录才能看**（job logs 与 `actions/artifacts/{id}/zip` 匿名下载均 403/401），
+  但 **check 注解匿名可读**（`/check-runs/{id}/annotations`）。因此失败用例与冒烟输出都改成 `::error::` 注解：
+  测试步骤产出 TRX → 失败用例名 + 断言消息进注解；冒烟步骤失败时把最后 30 行输出进注解。
+  这条"不登录也能定位失败"的通道是本仓库 CI 的诊断基础。
+- 首次跑通的观测：`core`（ubuntu）在一次运行中于 `Test (xunit)` 失败、同代码前后两次运行皆绿，
+  本机连跑 8 次也全绿（41/41，约 1s）——即偶发的时间敏感用例（CI runner 为 2 核、负载抖动大），
+  但当时**无法定位具体用例**（日志不可匿名读，且那次尚未加注解）。现已具备定位手段：下次复现即由注解指名。
 
