@@ -52,6 +52,22 @@ jobs:
       - name: Test (xunit)
         run: dotnet test tests/TickEngine.Tests/TickEngine.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=core-tests.trx" --results-directory TestResults
 
+      # 失败用例直接变成 CI 注解：公开仓库的日志/artifact 需要登录才能看，注解匿名可读
+      - name: Annotate test failures
+        if: failure()
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path TestResults -Filter *.trx -Recurse -ErrorAction SilentlyContinue
+          if (-not $files) { "::warning::未找到 TRX 报告"; exit 0 }
+          foreach ($f in $files) {
+            [xml]$t = Get-Content $f.FullName
+            foreach ($u in ($t.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -ne 'Passed' })) {
+              $msg = ("$($u.Output.ErrorInfo.Message) || $($u.Output.ErrorInfo.StackTrace)") -replace "`r?`n", ' '
+              if ($msg.Length -gt 800) { $msg = $msg.Substring(0, 800) }
+              "::error::$($u.testName) :: $msg"
+            }
+          }
+
       - name: Pack
         run: dotnet pack src/TickEngine/TickEngine.csproj -c Release --no-build -o artifacts
 
@@ -145,6 +161,21 @@ jobs:
       - name: Test (xunit)
         run: dotnet test tests/TickEngine.Tests/TickEngine.Tests.csproj -c Release --no-build --logger "trx;LogFileName=windows-tests.trx" --results-directory TestResults
 
+      - name: Annotate test failures
+        if: failure()
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path TestResults -Filter *.trx -Recurse -ErrorAction SilentlyContinue
+          if (-not $files) { "::warning::未找到 TRX 报告"; exit 0 }
+          foreach ($f in $files) {
+            [xml]$t = Get-Content $f.FullName
+            foreach ($u in ($t.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -ne 'Passed' })) {
+              $msg = ("$($u.Output.ErrorInfo.Message) || $($u.Output.ErrorInfo.StackTrace)") -replace "`r?`n", ' '
+              if ($msg.Length -gt 800) { $msg = $msg.Substring(0, 800) }
+              "::error::$($u.testName) :: $msg"
+            }
+          }
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -155,7 +186,15 @@ jobs:
           retention-days: 7
 
       - name: Engine smoke (无窗口)
-        run: dotnet run --project src/TickEngine.ConsoleDemo -c Release --no-build -- --smoke --seconds 3 --no-beatlog
+        shell: pwsh
+        run: |
+          dotnet run --project src/TickEngine.ConsoleDemo -c Release --no-build -- --smoke --seconds 3 --no-beatlog 2>&1 |
+            Tee-Object -FilePath smoke.log
+          if ($LASTEXITCODE -ne 0) {
+            "::error::Engine smoke 退出码 $LASTEXITCODE"
+            Get-Content smoke.log | Select-Object -Last 30 | ForEach-Object { "::error::$_" }
+            exit 1
+          }
 
   publish:
     name: publish to nuget.org + GitHub Release

@@ -18,6 +18,10 @@
     <Description>Unity-style Update architecture for .NET: fixed-FPS main/UI-thread loops and per-behaviour background loops at individual rates.</Description>
     <PackageTags>game-loop;update-loop;scheduler;fixed-timestep;tick;multithreading;realtime;unity-style</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- 可复现的包：CI 上把 PDB 里的源路径确定性化（只给本库开——演示/探针需要真实路径才能
+         自检"异常栈 → file:line → 跳 VS"，两者互斥，所以不放 Directory.Build.props） -->
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <ItemGroup>

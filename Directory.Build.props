@@ -22,8 +22,9 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <Deterministic>true</Deterministic>
-    <!-- CI 上启用确定性路径（PDB 里不写本机路径）；本地保持关闭，调试体验不受影响 -->
-    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <!-- 注意：ContinuousIntegrationBuild（确定性源路径）只给真正发布的核心库开，见 its csproj：
+         它会把 PDB 里的文档路径改写成映射路径，而 ConsoleDemo 的冒烟要断言"能从异常栈解析出
+         真实盘符路径 → 双击跳转 VS"，两者目标冲突。 -->
 
     <!-- 符号包：`dotnet pack` 同时产出 .snupkg -->
     <IncludeSymbols>true</IncludeSymbols>
