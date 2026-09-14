@@ -226,7 +226,8 @@ jobs:
           fi
 
   publish:
-    name: publish to nuget.org + GitHub Release    needs: [core, windows]
+    name: publish to nuget.org + GitHub Release
+    needs: [core, windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     # 必须与 nuget.org 可信发布策略里的 Environment 完全一致，否则 OIDC 换取临时 API Key 会失败
